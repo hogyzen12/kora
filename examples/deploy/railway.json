@@ -1,0 +1,22 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "examples/deploy/Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "kora --config kora.toml --rpc-url $RPC_URL rpc start --signers-config signers.toml --port $PORT",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": "/liveness",
+    "healthcheckTimeout": 10
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "PORT": "8080",
+        "RUST_LOG": "info"
+      }
+    }
+  }
+}

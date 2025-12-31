@@ -1,0 +1,230 @@
+# Kora RPC Deployment Justfile
+# Quick commands for deploying and managing Kora RPC node
+
+# Default recipe - show help
+default:
+    @just --list
+
+# Set up environment file from template
+setup:
+    @echo "Setting up .env file..."
+    @if [ ! -f .env ]; then \
+        cp .env.example .env; \
+        echo "✓ Created .env file from template"; \
+        echo "⚠ Please edit .env file with your configuration"; \
+    else \
+        echo "⚠ .env file already exists"; \
+    fi
+
+# Validate kora.toml configuration
+validate:
+    @echo "Validating configuration..."
+    @set -a && source .env && set +a && \
+    kora --config kora.toml config validate && \
+    echo "✓ Configuration is valid"
+
+# Validate configuration with RPC calls
+validate-rpc:
+    @echo "Validating configuration with RPC calls..."
+    @set -a && source .env && set +a && \
+    kora --config kora.toml --rpc-url "$$RPC_URL" config validate-with-rpc && \
+    echo "✓ Configuration is valid with RPC"
+
+# Deploy with Docker (basic)
+deploy:
+    @echo "Deploying Kora RPC with Docker..."
+    @docker-compose up -d --build
+    @echo "✓ Kora RPC deployed successfully"
+    @echo "ℹ View logs: just logs"
+    @echo "ℹ Health check: just health"
+
+# Deploy with monitoring stack (Prometheus + Grafana)
+deploy-monitoring:
+    @echo "Deploying Kora RPC with monitoring stack..."
+    @docker-compose --profile monitoring up -d --build
+    @echo "✓ Kora RPC and monitoring stack deployed successfully"
+    @echo "ℹ Kora RPC: http://localhost:$${PORT:-8080}"
+    @echo "ℹ Prometheus: http://localhost:9090"
+    @echo "ℹ Grafana: http://localhost:3000 (admin/admin)"
+
+# Stop all services
+stop:
+    @echo "Stopping Kora RPC services..."
+    @docker-compose down
+    @echo "✓ Services stopped"
+
+# Restart services
+restart: stop deploy
+
+# View logs (follow mode)
+logs:
+    @docker-compose logs -f kora
+
+# View all services logs
+logs-all:
+    @docker-compose logs -f
+
+# Check health status
+health:
+    @echo "Checking Kora RPC health..."
+    @set -a && source .env 2>/dev/null && set +a && \
+    port="$${PORT:-8080}" && \
+    if curl -sf http://localhost:$$port/liveness > /dev/null; then \
+        echo "✓ Kora RPC is healthy"; \
+    else \
+        echo "✗ Kora RPC is unhealthy"; \
+        exit 1; \
+    fi
+
+# Initialize Associated Token Accounts
+init-atas:
+    @echo "Initializing Associated Token Accounts..."
+    @set -a && source .env && set +a && \
+    kora --config kora.toml --rpc-url "$$RPC_URL" rpc initialize-atas --signers-config signers.toml && \
+    echo "✓ ATAs initialized successfully"
+
+# Generate new Solana keypair
+generate-keypair output="keypair.json":
+    @echo "Generating new Solana keypair..."
+    @if [ -f {{output}} ]; then \
+        echo "⚠ File {{output}} already exists!"; \
+        read -p "Overwrite? (y/N): " confirm && \
+        if [ "$$confirm" != "y" ] && [ "$$confirm" != "Y" ]; then \
+            echo "Cancelled"; \
+            exit 0; \
+        fi; \
+    fi
+    @solana-keygen new -o {{output}} --no-bip39-passphrase
+    @echo "✓ Keypair generated: {{output}}"
+    @echo "ℹ Public key: $$(solana-keygen pubkey {{output}})"
+    @echo "⚠ Keep this file secure! It contains your private key."
+
+# Test RPC endpoints
+test:
+    @echo "Testing RPC endpoints..."
+    @set -a && source .env 2>/dev/null && set +a && \
+    port="$${PORT:-8080}" && \
+    api_key="$${API_KEY:-}" && \
+    headers="" && \
+    if [ -n "$$api_key" ]; then headers="-H 'x-api-key: $$api_key'"; fi && \
+    echo "Testing /liveness endpoint..." && \
+    curl -s http://localhost:$$port/liveness | jq . && \
+    echo "✓ Liveness endpoint working" && \
+    echo "" && \
+    echo "Testing getSupportedTokens method..." && \
+    curl -s -X POST http://localhost:$$port \
+        -H "Content-Type: application/json" \
+        $$headers \
+        -d '{"jsonrpc":"2.0","id":1,"method":"getSupportedTokens"}' | jq . && \
+    echo "✓ getSupportedTokens method working" && \
+    echo "" && \
+    echo "Testing getConfig method..." && \
+    curl -s -X POST http://localhost:$$port \
+        -H "Content-Type: application/json" \
+        $$headers \
+        -d '{"jsonrpc":"2.0","id":1,"method":"getConfig"}' | jq . && \
+    echo "✓ getConfig method working"
+
+# Run local development server (without Docker)
+run-local:
+    @echo "Starting Kora RPC locally..."
+    @set -a && source .env && set +a && \
+    kora --config kora.toml --rpc-url "$$RPC_URL" rpc start --signers-config signers.toml --port $${PORT:-8080}
+
+# Build Docker image only
+build:
+    @echo "Building Docker image..."
+    @docker-compose build kora
+    @echo "✓ Docker image built successfully"
+
+# Pull latest images
+pull:
+    @echo "Pulling latest images..."
+    @docker-compose pull
+    @echo "✓ Images updated"
+
+# Show service status
+status:
+    @docker-compose ps
+
+# Clean up volumes and stopped containers
+clean:
+    @echo "Cleaning up Docker resources..."
+    @docker-compose down -v
+    @echo "✓ Cleanup complete"
+
+# Show metrics endpoint
+metrics:
+    @set -a && source .env 2>/dev/null && set +a && \
+    port="$${PORT:-8080}" && \
+    curl -s http://localhost:$$port/metrics
+
+# Export keypair public key
+show-pubkey keypair="keypair.json":
+    @solana-keygen pubkey {{keypair}}
+
+# Fund keypair (devnet)
+fund-devnet amount="1" keypair="keypair.json":
+    @echo "Requesting {{amount}} SOL airdrop for $$(solana-keygen pubkey {{keypair}})..."
+    @solana airdrop {{amount}} $$(solana-keygen pubkey {{keypair}}) --url https://api.devnet.solana.com
+    @echo "✓ Airdrop complete"
+
+# Check balance
+balance keypair="keypair.json":
+    @set -a && source .env && set +a && \
+    solana balance $$(solana-keygen pubkey {{keypair}}) --url "$$RPC_URL"
+
+# Railway deployment
+deploy-railway:
+    @echo "Deploying to Railway..."
+    @railway up
+    @echo "✓ Deployed to Railway"
+    @echo "ℹ View logs: railway logs"
+
+# Railway logs
+railway-logs:
+    @railway logs
+
+# Railway status
+railway-status:
+    @railway status
+
+# ====================
+# Fly.io Commands
+# ====================
+
+# Deploy to Fly.io (full setup)
+deploy-fly app_name="kora-rpc":
+    @./deploy-fly.sh setup {{app_name}}
+
+# Deploy to Fly.io (quick)
+fly-deploy:
+    @./deploy-fly.sh deploy
+
+# Initialize Fly.io app
+fly-init app_name="kora-rpc":
+    @./deploy-fly.sh init {{app_name}}
+
+# Set Fly.io secrets
+fly-secrets:
+    @./deploy-fly.sh secrets
+
+# View Fly.io logs
+fly-logs:
+    @./deploy-fly.sh logs
+
+# Check Fly.io status
+fly-status:
+    @./deploy-fly.sh status
+
+# Scale Fly.io app
+fly-scale count:
+    @./deploy-fly.sh scale {{count}}
+
+# Open Fly.io app in browser
+fly-open:
+    @./deploy-fly.sh open
+
+# SSH into Fly.io app
+fly-ssh:
+    @./deploy-fly.sh ssh

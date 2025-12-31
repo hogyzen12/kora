@@ -1,0 +1,75 @@
+# Fly.io deployment configuration for Kora RPC
+# See https://fly.io/docs/reference/configuration/ for full documentation
+
+app = "kora-rpc"
+primary_region = "sjc" # Change to your preferred region (sjc, iad, lhr, etc.)
+
+# Build configuration
+[build]
+  dockerfile = "Dockerfile"
+
+# HTTP service
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  # Health check
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/liveness"
+
+# VM configuration
+[vm]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
+
+# Environment variables (non-sensitive)
+[env]
+  PORT = "8080"
+  RUST_LOG = "info"
+
+# Secrets (set via: flyctl secrets set KEY=VALUE)
+# flyctl secrets set KORA_PRIVATE_KEY="[123,45,67,...]"
+# flyctl secrets set RPC_URL="https://api.mainnet-beta.solana.com"
+# flyctl secrets set API_KEY="your-api-key"
+# flyctl secrets set HMAC_SECRET="your-hmac-secret"
+
+# Metrics endpoint (optional)
+[[metrics]]
+  port = 8080
+  path = "/metrics"
+
+# Redis (optional - uncomment to use Fly.io Redis)
+# [[services]]
+#   internal_port = 6379
+#   protocol = "tcp"
+#
+#   [[services.ports]]
+#     port = 6379
+
+# Persistent volume (optional - for local caching)
+# [mounts]
+#   source = "kora_data"
+#   destination = "/data"
+
+# Autoscaling configuration
+[scaling]
+  min_count = 1
+  max_count = 10
+
+# Process configuration
+[processes]
+  app = "kora --config kora.toml --rpc-url $RPC_URL rpc start --signers-config signers.toml --port $PORT"
+
+# Deploy configuration
+[deploy]
+  strategy = "rolling"
+  max_unavailable = 0.5
