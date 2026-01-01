@@ -11,7 +11,7 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-APP_NAME="unruggable"
+APP_NAME="kora-unruggable"
 
 # Step 1: Check if keypair exists
 if [ ! -f unruggable-feepayer.json ]; then
