@@ -10,4 +10,5 @@ COPY kora.toml ./
 COPY signers.toml ./
 
 # Run the installed kora-rpc binary (it's in PATH after cargo install)
-CMD kora --config kora.toml  --rpc-url ${RPC_URL} rpc start --signers-config signers.toml --port ${PORT:-8080}
+# Use shell form to ensure environment variables are expanded
+CMD ["sh", "-c", "kora --config kora.toml --rpc-url ${RPC_URL} rpc start --signers-config signers.toml --port ${PORT:-8080}"]

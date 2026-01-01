@@ -65,10 +65,6 @@ primary_region = "sjc" # Change to your preferred region (sjc, iad, lhr, etc.)
   min_count = 1
   max_count = 10
 
-# Process configuration
-[processes]
-  app = "kora --config kora.toml --rpc-url $RPC_URL rpc start --signers-config signers.toml --port $PORT"
-
 # Deploy configuration
 [deploy]
   strategy = "rolling"
