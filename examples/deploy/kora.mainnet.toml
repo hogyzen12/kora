@@ -147,6 +147,6 @@ expiry_seconds = 30
 # Usage limits (requires Redis)
 [kora.usage_limit]
 enabled = false  # Set to true if using Redis
-# cache_url = "redis://redis:6379"
-# max_transactions = 1000
-# fallback_if_unavailable = false
+cache_url = "redis://redis:6379"
+max_transactions = 1000
+fallback_if_unavailable = false
