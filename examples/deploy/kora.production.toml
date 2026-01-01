@@ -1,0 +1,142 @@
+# Kora RPC - PRODUCTION HARDENED Configuration
+# App: kora-unruggable
+# Security Level: HIGH - Only allows app-specific transactions
+
+[kora]
+rate_limit = 100
+
+# Authentication REQUIRED for all requests (except /liveness)
+[kora.auth]
+# These are loaded from environment variables
+# Both API_KEY and HMAC_SECRET are required
+
+# Redis cache (recommended for production)
+[kora.cache]
+enabled = false  # Set to true if you deploy Redis
+url = "redis://redis:6379"
+default_ttl = 300
+account_ttl = 60
+
+# RPC method controls
+[kora.enabled_methods]
+liveness = true
+estimate_transaction_fee = true
+get_supported_tokens = true
+sign_transaction = true
+sign_and_send_transaction = true
+transfer_transaction = false  # Disabled - not needed for your app
+get_blockhash = true
+get_config = true
+get_payer_signer = true
+
+[validation]
+max_allowed_lamports = 500000  # 0.0005 SOL max (covers 2x 0.0001 SOL transfers + fees)
+max_signatures = 3  # Minimal signatures needed
+
+# Use Jupiter for REAL mainnet pricing
+price_source = "Jupiter"
+
+# RESTRICTED: Only programs your app needs
+allowed_programs = [
+    "11111111111111111111111111111111",              # System Program (for SOL transfers)
+    "23MzuyVH6EKGbUHq7GjBY6ydSCVoZQYDmzeKVdDBKWNQ", # Assembly/Slot Replay (your app)
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",   # Token Program (for USDC/JLP)
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",  # Associated Token Program
+    "ComputeBudget111111111111111111111111111111",   # Compute Budget Program
+]
+
+# Payment tokens accepted (USDC + JLP)
+allowed_tokens = [
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC mainnet
+    "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4", # JLP mainnet
+]
+
+# SPL tokens accepted for paid transactions
+allowed_spl_paid_tokens = [
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", # USDC
+    "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4", # JLP
+]
+
+# No disallowed accounts (whitelist approach via allowed_programs is sufficient)
+disallowed_accounts = []
+
+# Pricing configuration
+[validation.price]
+type = "margin"
+margin = 0.05  # 5% margin (conservative)
+
+# HARDENED: Fee payer policy - HIGHLY RESTRICTIVE
+# Only allow what's absolutely necessary for your app's transaction pattern
+[validation.fee_payer_policy]
+
+[validation.fee_payer_policy.system]
+allow_transfer = false       # DENIED - Prevents fee payer SOL draining
+allow_assign = false         # DENIED - Prevents account ownership changes
+allow_create_account = false # DENIED - Prevents account creation abuse
+allow_allocate = false       # DENIED - Prevents resource waste
+
+[validation.fee_payer_policy.system.nonce]
+allow_initialize = false  # DENIED
+allow_advance = false     # DENIED
+allow_authorize = false   # DENIED
+allow_withdraw = false    # DENIED
+
+[validation.fee_payer_policy.spl_token]
+allow_transfer = false           # DENIED - Prevents token draining
+allow_burn = false              # DENIED - Prevents token burning
+allow_close_account = false     # DENIED - Prevents account closure
+allow_approve = false           # DENIED - Prevents delegate approval
+allow_revoke = false            # DENIED
+allow_set_authority = false     # DENIED - Prevents authority changes
+allow_mint_to = false           # DENIED - Prevents token minting
+allow_initialize_mint = false   # DENIED
+allow_initialize_account = false # DENIED
+allow_initialize_multisig = false # DENIED
+allow_freeze_account = false    # DENIED
+allow_thaw_account = false      # DENIED
+
+[validation.fee_payer_policy.token_2022]
+allow_transfer = false           # DENIED
+allow_burn = false              # DENIED
+allow_close_account = false     # DENIED
+allow_approve = false           # DENIED
+allow_revoke = false            # DENIED
+allow_set_authority = false     # DENIED
+allow_mint_to = false           # DENIED
+allow_initialize_mint = false   # DENIED
+allow_initialize_account = false # DENIED
+allow_initialize_multisig = false # DENIED
+allow_freeze_account = false    # DENIED
+allow_thaw_account = false      # DENIED
+
+# Token2022 extension restrictions
+[validation.token_2022]
+blocked_mint_extensions = [
+    "permanent_delegate",         # SECURITY: Blocks tokens with permanent delegate
+    "transfer_fee_config",        # Blocks fee-on-transfer tokens
+    "confidential_transfer_mint", # Blocks confidential transfers
+    "non_transferable",           # Blocks non-transferable tokens
+]
+blocked_account_extensions = [
+    "memo_transfer",      # Blocks memo requirements
+    "cpi_guard",          # Blocks CPI guard
+    "immutable_owner",    # Blocks immutable ownership
+]
+
+# Prometheus metrics
+[metrics]
+enabled = true
+endpoint = "/metrics"
+port = 8080
+scrape_interval = 60
+
+[metrics.fee_payer_balance]
+enabled = true
+expiry_seconds = 30
+
+# Usage limits (disabled unless Redis deployed)
+[kora.usage_limit]
+enabled = false
+cache_url = "redis://redis:6379"
+max_transactions = 1000
+fallback_if_unavailable = false
