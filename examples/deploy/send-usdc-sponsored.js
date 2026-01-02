@@ -61,8 +61,14 @@ function parseArgs() {
 
   try {
     new PublicKey(recipient);
-  } catch {
+  } catch (error) {
     console.error("\n❌ Invalid recipient address!");
+    console.error(`   Received: "${recipient}"`);
+    console.error(`   Error: ${error.message}`);
+    console.log("\n   Solana addresses should be:");
+    console.log("   - 32-44 characters long");
+    console.log("   - Base58 encoded (no 0, O, I, l)");
+    console.log("\n   Example: 6tBou5MHL5aWpDy6cgf3wiwGGGK2mR8qs68ujtpaoWrf2");
     process.exit(1);
   }
 
