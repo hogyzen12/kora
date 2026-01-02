@@ -6,9 +6,15 @@
  *
  * Usage:
  *   npm install @solana/web3.js
+ *
+ *   # With your own funded keypair:
+ *   node test-sponsorship.js /path/to/keypair.json
+ *
+ *   # Or with a generated keypair (will fail - needs funding):
  *   node test-sponsorship.js
  */
 
+const fs = require('fs');
 const {
   Connection,
   Keypair,
@@ -29,6 +35,27 @@ const JITO_ADDRESS = new PublicKey("Dah1Uu7SW1da337YFRiEEyV1KAjpn7S2HwARCs216L2"
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const JLP_MINT = "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4";
 const REQUIRED_TRANSFER = 100_000; // 0.0001 SOL
+
+// Helper to load keypair from file or generate new one
+function loadKeypair(keypairPath) {
+  if (!keypairPath) {
+    console.log("   ⚠️  No keypair provided - generating temporary wallet");
+    console.log("   ⚠️  This wallet has 0 SOL and will fail validation");
+    console.log("   💡 Run with: node test-sponsorship.js /path/to/keypair.json");
+    return Keypair.generate();
+  }
+
+  try {
+    const keypairData = JSON.parse(fs.readFileSync(keypairPath, 'utf-8'));
+    const keypair = Keypair.fromSecretKey(new Uint8Array(keypairData));
+    console.log(`   ✅ Loaded keypair from: ${keypairPath}`);
+    return keypair;
+  } catch (error) {
+    console.error(`   ❌ Failed to load keypair from ${keypairPath}`);
+    console.error(`   Error: ${error.message}`);
+    process.exit(1);
+  }
+}
 
 // Helper to call Kora RPC
 async function koraRPC(method, params = {}) {
@@ -199,10 +226,32 @@ async function runTests() {
   console.log(`Solana RPC: ${SOLANA_RPC}`);
 
   try {
-    // Create a test wallet
-    const sender = Keypair.generate();
-    console.log(`\n👤 Test Sender: ${sender.publicKey.toBase58()}`);
-    console.log("   (This is a temporary test wallet with 0 SOL)");
+    // Load keypair from command line arg or generate new one
+    const keypairPath = process.argv[2];
+    console.log(`\n👤 Loading sender wallet...`);
+    const sender = loadKeypair(keypairPath);
+    console.log(`   Address: ${sender.publicKey.toBase58()}`);
+
+    // Check sender's SOL balance
+    const connection = new Connection(SOLANA_RPC, 'confirmed');
+    const balance = await connection.getBalance(sender.publicKey);
+    const solBalance = balance / 1e9;
+    console.log(`   Balance: ${solBalance.toFixed(9)} SOL`);
+
+    // Minimum balance needed: 0.0001 (juLeso) + 0.0001 (Jito) + buffer for rent
+    const minBalanceNeeded = 0.0003;
+    if (solBalance < minBalanceNeeded) {
+      console.log(`\n❌ Insufficient balance!`);
+      console.log(`   Need at least ${minBalanceNeeded} SOL for testing`);
+      console.log(`   Current balance: ${solBalance.toFixed(9)} SOL`);
+      console.log(`\n💡 Fund this wallet with at least ${minBalanceNeeded} SOL:`);
+      console.log(`   ${sender.publicKey.toBase58()}`);
+      console.log(`\n   Or provide a funded keypair:`);
+      console.log(`   node test-sponsorship.js /path/to/keypair.json`);
+      process.exit(1);
+    }
+
+    console.log(`   ✅ Sufficient balance for testing`);
 
     // Get Kora fee payer info
     const payerInfo = await koraRPC("getPayerSigner");
@@ -244,15 +293,24 @@ async function runTests() {
 
     if (feeResult.success) {
       console.log(`\n💰 Cost per transaction:`);
-      console.log(`   ${feeResult.usdcAmount.toFixed(6)} USDC (${feeResult.solFee.toFixed(9)} SOL equivalent)`);
+      console.log(`   ${feeResult.usdcAmount.toFixed(6)} USDC`);
+      console.log(`   (${feeResult.solFee.toFixed(9)} SOL equivalent fee paid by Kora)`);
     }
+
+    console.log("\n🎉 What this means:");
+    console.log("   - Your user pays in USDC (or JLP)");
+    console.log("   - Kora pays the SOL network fees");
+    console.log("   - User gets gasless transactions!");
 
     console.log("\n💡 Next steps:");
     console.log("   1. ✅ Sponsorship is working!");
-    console.log("   2. Fund fee payer with more SOL for production");
-    console.log("   3. Integrate this into your app");
-    console.log("   4. Enable authentication for production");
-    console.log("   5. To send a real transaction, set dryRun = false in the script");
+    console.log("   2. Integrate this flow into your app");
+    console.log("   3. Fund fee payer with more SOL for production use");
+    console.log("   4. Enable authentication (API Key + HMAC)");
+    console.log("   5. Deploy hardened security config");
+    console.log("\n   To send a real transaction:");
+    console.log("   - Edit this script and set dryRun = false in testSignAndSend()");
+    console.log("   - Or use signAndSendTransaction in your app");
 
   } catch (error) {
     console.error("\n❌ Test failed:", error.message);

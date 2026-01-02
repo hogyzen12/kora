@@ -42,11 +42,29 @@ This will test:
 npm install @solana/web3.js
 ```
 
-**Run:**
+**Step 1: Create a funded test wallet**
+
+You need a wallet with at least 0.0003 SOL (for the juLeso and Jito transfers):
+
 ```bash
-cd examples/deploy
-node test-sponsorship.js
+# Quick way: Use the helper script
+node create-test-wallet.js
+
+# This creates test-wallet.json and shows you the address
+# Fund that address with 0.001 SOL from your main wallet
 ```
+
+**Step 2: Run the test**
+
+```bash
+# With your funded keypair
+node test-sponsorship.js test-wallet.json
+
+# Or with any other keypair file
+node test-sponsorship.js /path/to/keypair.json
+```
+
+See [CREATE_TEST_WALLET.md](CREATE_TEST_WALLET.md) for detailed instructions.
 
 **What it does:**
 1. Creates a transaction with the 3 required checks:

@@ -32,3 +32,4 @@ docs/api-reference-generated/
 
 # AI
 .claude/
+examples/deploy/test-wallet.json
