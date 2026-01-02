@@ -60,7 +60,7 @@ async function koraRPC(method, params = {}) {
   return data.result;
 }
 
-async function createTransaction(sender, koraPaymentAddress, feeAmount) {
+async function createTransaction(sender, koraPayerAddress, koraPaymentAddress, feeAmount) {
   const connection = new Connection(SOLANA_RPC, 'confirmed');
   const { blockhash } = await connection.getLatestBlockhash();
 
@@ -71,6 +71,7 @@ async function createTransaction(sender, koraPaymentAddress, feeAmount) {
   console.log(`   Your USDC account: ${senderUSDC.toBase58()}`);
   console.log(`   Kora USDC account: ${koraUSDC.toBase58()}`);
   console.log(`   Payment amount: ${feeAmount} micro-USDC (${(feeAmount / 1e6).toFixed(6)} USDC)`);
+  console.log(`   Fee payer: ${koraPayerAddress.toBase58()} (Kora)`);
 
   // Build transaction
   const instructions = [
@@ -100,7 +101,7 @@ async function createTransaction(sender, koraPaymentAddress, feeAmount) {
   ];
 
   const message = new TransactionMessage({
-    payerKey: sender.publicKey,
+    payerKey: koraPayerAddress,  // ✅ Kora is the fee payer!
     recentBlockhash: blockhash,
     instructions,
   }).compileToV0Message();
@@ -133,14 +134,15 @@ async function runTest() {
 
     // Get Kora info
     const payerInfo = await koraRPC("getPayerSigner");
+    const koraPayerAddress = new PublicKey(payerInfo.signer_address);
     const koraPaymentAddress = new PublicKey(payerInfo.payment_address);
 
-    console.log(`\n💼 Kora Payment Address: ${payerInfo.payment_address}`);
-    console.log(`   (Fee Payer: ${payerInfo.signer_address})`);
+    console.log(`\n💼 Kora Fee Payer: ${payerInfo.signer_address}`);
+    console.log(`   Payment Address: ${payerInfo.payment_address}`);
 
     // Create transaction with fixed fee
     console.log(`\n📝 Creating transaction...`);
-    const transaction = await createTransaction(sender, koraPaymentAddress, FIXED_FEE_MICRO_USDC);
+    const transaction = await createTransaction(sender, koraPayerAddress, koraPaymentAddress, FIXED_FEE_MICRO_USDC);
     const base64Tx = Buffer.from(transaction.serialize()).toString('base64');
 
     console.log(`\n✅ Transaction created with:`);
