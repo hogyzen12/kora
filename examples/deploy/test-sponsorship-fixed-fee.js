@@ -33,9 +33,10 @@ const JITO_ADDRESS = new PublicKey("Dah1Uu7SW1da337YFRiEEyV1KAjpn7S2HwARCs216L2"
 const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const REQUIRED_TRANSFER = 100_000; // 0.0001 SOL
 
-// Fixed fee for testing (based on typical Solana transaction costs)
-// ~5000 lamports SOL fee = ~$0.0005 at $100/SOL = 500 micro-USDC
-const FIXED_FEE_MICRO_USDC = 1000; // 0.001 USDC - generous for testing
+// Fixed fee for testing
+// Kora requires 10720 micro-USDC based on actual transaction simulation
+// Adding 20% buffer for safety
+const FIXED_FEE_MICRO_USDC = 12000; // 0.012 USDC - covers transaction + buffer
 
 function loadKeypair(keypairPath) {
   if (!keypairPath) {
