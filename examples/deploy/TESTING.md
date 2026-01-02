@@ -2,9 +2,9 @@
 
 Now that your Kora RPC is deployed and running, here's how to test it:
 
-## 🎯 Quick Test (30 seconds)
+## 🎯 Quick API Health Check (30 seconds)
 
-The simplest way to verify your API is working:
+First, verify your API is responding:
 
 ```bash
 cd examples/deploy
@@ -16,7 +16,7 @@ This will test:
 - ✅ getSupportedTokens (USDC + JLP)
 - ✅ getPayerSigner (fee payer address)
 - ✅ Fee payer SOL balance
-- ✅ getConfig (full configuration)
+- ✅ getConfig (full configuration with security hardening)
 
 **Expected output:**
 ```
@@ -31,9 +31,48 @@ This will test:
 
 ---
 
-## 🧪 Test Transaction Sponsorship
+## 🚀 Test Transaction Sponsorship (RECOMMENDED)
 
-### Option 1: Python Test (Recommended)
+**This is the most important test** - it verifies Kora can actually sponsor transactions!
+
+### Option 1: Node.js Test (Easiest!)
+
+**Requirements:**
+```bash
+npm install @solana/web3.js
+```
+
+**Run:**
+```bash
+cd examples/deploy
+node test-sponsorship.js
+```
+
+**What it does:**
+1. Creates a transaction with the 3 required checks:
+   - Assembly/Slot Replay program instruction
+   - 0.0001 SOL transfer to juLeso (`juLesoSmdTcRtzjCzYzRoHrnF8GhVu6KCV7uxq7nJGp`)
+   - 0.0001 SOL transfer to Jito (`Dah1Uu7SW1da337YFRiEEyV1KAjpn7S2HwARCs216L2`)
+2. Tests `estimateTransactionFee` - Shows cost in USDC
+3. Tests `signTransaction` - Gets signed transaction from Kora
+4. Shows results without actually broadcasting (dry run mode)
+
+**Expected output:**
+```
+✅ Transaction Sponsorship Tests PASSED!
+
+📊 Results:
+   ✅ Fee estimation: Working
+   ✅ Transaction signing: Working
+   ✅ Kora can sponsor transactions with USDC payment
+
+💰 Cost per transaction:
+   0.000500 USDC (0.000005000 SOL equivalent)
+```
+
+---
+
+### Option 2: Python Test
 
 **Requirements:**
 ```bash
@@ -47,48 +86,28 @@ python3 test-transaction.py
 ```
 
 **What it does:**
-1. Creates a transaction with the 3 required checks:
-   - Assembly/Slot Replay program instruction
-   - 0.0001 SOL transfer to juLeso
-   - 0.0001 SOL transfer to Jito
-2. Tests `estimateTransactionFee` endpoint
-3. Tests `signTransaction` endpoint
-4. Returns signed transaction ready to broadcast
-
-**Expected output:**
-```
-✅ Transaction sponsorship test PASSED!
-
-📊 Results:
-   ✅ Transaction created with required checks
-   ✅ Fee estimation working
-   ✅ Transaction signing working
-```
+- Same as Node.js test, but using Python
+- Creates transaction with 3 required checks
+- Tests fee estimation and signing
 
 ---
 
-### Option 2: Node.js Test
-
-**Requirements:**
-```bash
-npm install @solana/web3.js
-```
+### Option 3: Simple Bash Test (No dependencies!)
 
 **Run:**
 ```bash
 cd examples/deploy
-node test-kora-api.js
+./test-sponsorship-simple.sh
 ```
 
 **What it does:**
-1. Tests `getSupportedTokens`
-2. Tests `getPayerSigner`
-3. Tests `estimateTransactionFee` with USDC and JLP
-4. Shows fee estimates in both tokens
+- Shows you how to test with curl commands
+- Provides example RPC calls
+- Guides you through the process
 
 ---
 
-### Option 3: Manual curl Test
+### Option 4: Manual curl Test
 
 **Get supported tokens:**
 ```bash
