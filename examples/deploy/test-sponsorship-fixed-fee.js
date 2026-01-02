@@ -160,7 +160,10 @@ async function runTest() {
     });
 
     console.log("   ✅ Transaction signed by Kora!");
-    console.log(`   Signed tx: ${result.signedTransaction.substring(0, 80)}...`);
+
+    // Handle different response formats
+    const signedTx = result.signedTransaction || result.signed_transaction || JSON.stringify(result);
+    console.log(`   Response: ${signedTx.substring(0, 80)}...`);
 
     // Success!
     console.log("\n" + "=".repeat(60));
