@@ -246,7 +246,9 @@ async function sendUSDC() {
       paymentToken: USDC_MINT.toBase58(),
     });
 
-    const signature = result.signature || result.transaction_signature;
+    console.log("   Debug - Full result:", JSON.stringify(result, null, 2));
+
+    const signature = result.signature || result.transaction_signature || result;
 
     console.log("\n" + "=".repeat(60));
     console.log("✅ TRANSACTION SENT SUCCESSFULLY!");
